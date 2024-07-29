@@ -62,5 +62,9 @@ public class Menu extends JPanel{
         gbc.gridy = 2;
         add(startButton,gbc);
     }
+
+    public JButton getStartButton(){
+        return startButton;
+    }
 }
 

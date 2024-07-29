@@ -15,21 +15,25 @@ public class Board extends JPanel implements MouseListener {
     private int numbOfNotMines;
     private boolean gameOver;
     private JLabel label;
+    private int checkedMines;
 
     public Board(int row, int col, String difficulty) {
         UIManager.put("Button.disabledText", UIManager.get("Button.foreground"));
         this.row = row;
         this.col = col;
         this.difficulty = difficulty;
+
         double multiplier = 0.2;
-        if(difficulty.equals("Easy")){
+        if(difficulty.equals("EASY")){
             multiplier = 0.1;
         }
-        else if(difficulty.equals("Hard")){
+        else if(difficulty.equals("HARD")){
             multiplier = 0.3;
         }
         this.numbOfMines = (int) Math.floor((row * col) * multiplier);
-        System.out.println(numbOfMines);
+        this.checkedMines = numbOfMines;
+        System.out.println(checkedMines);
+
         this.numbOfNotMines = row * col - numbOfMines;
         this.gameOver = false;
         int fieldSize = 30;
@@ -42,7 +46,7 @@ public class Board extends JPanel implements MouseListener {
         generateMinePos();
     }
 
-    public void initBoard(JPanel window) {
+    private void initBoard(JPanel window) {
         for (int i = 0; i < boardArray.length; i++) {
             for (int j = 0; j < boardArray[0].length; j++) {
                 Field button = new Field(false, false, i, j);
@@ -54,20 +58,14 @@ public class Board extends JPanel implements MouseListener {
         }
     }
 
-    public int revealField(int row, int col) {
+    private int revealField(int row, int col) {
         if (boardArray[row][col].isFlagged() || gameOver) return 0;
 
         if (boardArray[row][col].getType() == Type.MINE) {
             gameOver = true;
             disableAllButtons();
-            label = new JLabel("Game over");
-            label.setFont(new Font("Arial", Font.BOLD, 30));
-            label.setForeground(Color.RED);
-            this.setLayout(new BorderLayout());
-            this.add(label, BorderLayout.CENTER);
-            label.setVisible(true);
-
             return -1;
+
         } else if (boardArray[row][col].getType() == Type.BLANK) {
             Queue<Field> queue = new LinkedList<>();
             queue.add(boardArray[row][col]);
@@ -125,13 +123,15 @@ public class Board extends JPanel implements MouseListener {
         if (boardArray[row][col].notRevealed() && !gameOver) {
             if (boardArray[row][col].isFlagged()) {
                 boardArray[row][col].setFlagged(false);
+                checkedMines--;
             } else {
                 boardArray[row][col].setFlagged(true);
+                checkedMines++;
             }
         }
     }
 
-    public void generateMinePos() {
+    private void generateMinePos() {
         int count = 0;
         Random rand = new Random();
 
@@ -168,8 +168,6 @@ public class Board extends JPanel implements MouseListener {
             if (this.revealField(field.getMineRow(), field.getMineCol()) == -1) {
                 System.out.println("Game over");
             } else if (checkWin() == 0) {
-                label = new JLabel("You won");
-                this.add(label);
                 System.out.println("You won");
             }
         }
@@ -196,5 +194,17 @@ public class Board extends JPanel implements MouseListener {
 
     public int getCol(){
         return col;
+    }
+
+    public int getCheckedMines(){
+        return checkedMines;
+    }
+
+    public String getDifficulty(){
+        return difficulty;
+    }
+
+    public boolean getGameOver(){
+        return gameOver;
     }
 }
