@@ -9,7 +9,10 @@ public class Main implements ActionListener{
     private CardLayout cardLayout;
     private Menu menu;
     public static Board board;
-    private JLabel gameStatus;
+    private JLabel checkedMines;
+    JLabel gameStatus;
+    private JLayeredPane layeredPane;
+    private JPanel gameStatusPanel;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(()->new Main().createGUI());
@@ -19,93 +22,127 @@ public class Main implements ActionListener{
         frame = new JFrame();
         frame.setLocationRelativeTo(null);
         frame.setResizable(false);
-        frame.setLocation(650, 250);
-        frame.setSize(new Dimension(350,300));
+        frame.setLocation(620, 220);
+        frame.setSize(new Dimension(630,727));
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         cardLayout = new CardLayout();
         cards = new JPanel(cardLayout);
 
-        menu = new Menu(this);
+        //super panel
         JPanel gamePanel = new JPanel();
         gamePanel.setLayout(new BoxLayout(gamePanel,BoxLayout.Y_AXIS));
+
+        //panel that contains buttons and label at the top of super panel
         JPanel controlPanel = new JPanel();
         controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.X_AXIS));
+        controlPanel.setPreferredSize(new Dimension(frame.getWidth(), 60));
+        controlPanel.setBackground(Color.BLACK);
 
-        // create a button for going back to MAIN MANE from gamePanel
-        JButton goToMenuButt = new JButton("MAIN MENU");
-        goToMenuButt.setFocusable(false);
-        goToMenuButt.addActionListener(this);
-        goToMenuButt.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-            gamePanel.remove(board);
-            cardLayout.show(cards, "MenuPanel");
-            }
-        });
+        //go back to menu button
+        JButton goToMenuButt = getMainMenuButton();
+
+        checkedMines = new JLabel();
+        checkedMines.setOpaque(true);
+
+        //restart game button
+        JButton restartButton = getRestartButton();
+
+        controlPanel.add(Box.createRigidArea(new Dimension(20, 60)));
         controlPanel.add(goToMenuButt);
         controlPanel.add(Box.createHorizontalGlue());
-
-        gameStatus = new JLabel();
-        gameStatus.setOpaque(true);
-        controlPanel.add(gameStatus);
+        controlPanel.add(checkedMines);
         controlPanel.add(Box.createHorizontalGlue());
-
-        //create a button for restarting a game
-        JButton restartButton = new JButton("RESTART");
-        restartButton.setFocusable(false);
-        restartButton.addActionListener(this);
-        restartButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                gamePanel.remove(board);
-                startGame(board.getRow() + " x " + board.getCol(), board.getDifficulty());
-            }
-        });
         controlPanel.add(restartButton);
+        controlPanel.add(Box.createRigidArea(new Dimension(20, 60)));
 
         gamePanel.add(controlPanel);
+
+        //panel that contains board under the control panel
+        JPanel boardPanel = new JPanel(new GridBagLayout());
+        boardPanel.setBackground(Color.BLACK);
+
+        // Create a JLayeredPane and add both the board and the gameStatus label to it
+        layeredPane = new JLayeredPane();
+        layeredPane.setLayout(new OverlayLayout(layeredPane));
+        boardPanel.add(layeredPane);
+        gamePanel.add(boardPanel);
+
+        menu = new Menu(this);
         cards.add(menu, "MenuPanel");
         cards.add(gamePanel, "GamePanel");
         frame.add(cards);
         frame.setVisible(true);
     }
 
+    private JButton getMainMenuButton() {
+        JButton goToMenuButt = new JButton("MAIN MENU");
+        goToMenuButt.setFocusable(false);
+        goToMenuButt.setBackground(Color.WHITE);
+        goToMenuButt.setForeground(Color.BLACK);
+        goToMenuButt.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+            layeredPane.remove(board);
+            layeredPane.remove(gameStatusPanel);
+            checkedMines.setText("");
+            cardLayout.show(cards, "MenuPanel");
+            }
+        });
+        return goToMenuButt;
+    }
+
+    private JButton getRestartButton() {
+        JButton restartButton = new JButton("RESTART");
+        restartButton.setBackground(Color.WHITE);
+        restartButton.setForeground(Color.BLACK);
+        restartButton.setFocusable(false);
+        restartButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                layeredPane.remove(board);
+                layeredPane.remove(gameStatusPanel);
+                checkedMines.setText("");
+                startGame(board.getRow() + " x " + board.getCol(), board.getDifficulty());
+            }
+        });
+        return restartButton;
+    }
+
     public void startGame(String boardSize, String difficulty){
-        String [] dim = boardSize.split(" x ");
+
+        if(boardSize.isEmpty() || difficulty.isEmpty()){
+            JOptionPane.showMessageDialog(menu, "Missing board size or difficulty");
+            return;
+        }
+
+        String[] dim = boardSize.split(" x ");
         int rows = Integer.parseInt(dim[0]);
         int cols = Integer.parseInt(dim[1]);
+
+        gameStatusPanel = new JPanel(new GridBagLayout());
+        gameStatusPanel.setOpaque(false);
+        gameStatus = new JLabel("");
+        gameStatus.setFont(new Font("Arial", Font.BOLD, 40));
+        gameStatus.setVisible(false);
+        gameStatusPanel.add(gameStatus);
 
         if(board != null){
             cards.remove(board);
         }
-        board = new Board(rows, cols, difficulty);
+        board = new Board(rows, cols, difficulty, checkedMines, gameStatus);
 
-        JPanel gamePanel = (JPanel) cards.getComponent(1);
-        gamePanel.add(board);
-        gamePanel.revalidate();
-        gamePanel.repaint();
+        layeredPane.add(board, JLayeredPane.DEFAULT_LAYER);
+        layeredPane.add(gameStatusPanel, JLayeredPane.PALETTE_LAYER);
+        layeredPane.revalidate();
+        layeredPane.repaint();
         cardLayout.show(cards, "GamePanel");
-        frame.pack();
     }
 
    @Override
     public void actionPerformed(ActionEvent e) {
         if(e.getSource() == menu.getStartButton()) {
             startGame(board.getRow() + " x " + board.getCol(), board.getDifficulty());
-
         }
     }
 }
-
-/*"Minesweeper"
-
-if(board.checkWin() == 0){
-        System.out.println("main you won");
-                gameStatus.setText("YOU WON");
-            } else if (board.getGameOver()) {
-        gameStatus.setText("GAME OVER");
-                System.out.println("main you lost");
-            }
-
- */

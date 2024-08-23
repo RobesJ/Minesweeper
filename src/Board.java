@@ -1,7 +1,12 @@
+import javax.imageio.ImageIO;
 import javax.swing.*;
+import javax.swing.plaf.basic.BasicButtonUI;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Random;
@@ -14,11 +19,25 @@ public class Board extends JPanel implements MouseListener {
     private final int numbOfMines;
     private int numbOfNotMines;
     private boolean gameOver;
-    private JLabel label;
+    private final JLabel gameStatus;
+    private final JLabel checkedMinesLabel;
     private int checkedMines;
+    private static ImageIcon flagIcon, exploIcon;
 
-    public Board(int row, int col, String difficulty) {
-        UIManager.put("Button.disabledText", UIManager.get("Button.foreground"));
+    static {
+        try {
+            BufferedImage img = ImageIO.read(new File("/home/robes/Plocha/MinesweeperV2/out/production/MinesweeperV2/business.png"));
+            Image scaledImg = img.getScaledInstance(20, 20, Image.SCALE_SMOOTH);
+            flagIcon = new ImageIcon(scaledImg);
+            BufferedImage img2 = ImageIO.read(new File("/home/robes/Plocha/MinesweeperV2/src/explo.jpeg"));
+            Image scaledImg2 = img2.getScaledInstance(30, 30, Image.SCALE_SMOOTH);
+            exploIcon = new ImageIcon(scaledImg2);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public Board(int row, int col, String difficulty, JLabel checkedMinesLabel, JLabel gameStatus) {
         this.row = row;
         this.col = col;
         this.difficulty = difficulty;
@@ -32,7 +51,15 @@ public class Board extends JPanel implements MouseListener {
         }
         this.numbOfMines = (int) Math.floor((row * col) * multiplier);
         this.checkedMines = numbOfMines;
-        System.out.println(checkedMines);
+        this.checkedMinesLabel = checkedMinesLabel;
+        checkedMinesLabel.setIcon(flagIcon);
+        checkedMinesLabel.setIconTextGap(5);
+        checkedMinesLabel.setText(Integer.toString(checkedMines));
+        checkedMinesLabel.setForeground(Color.WHITE);
+        checkedMinesLabel.setBackground(Color.BLACK);
+
+        this.gameStatus = gameStatus;
+        gameStatus.setVisible(false);
 
         this.numbOfNotMines = row * col - numbOfMines;
         this.gameOver = false;
@@ -51,20 +78,26 @@ public class Board extends JPanel implements MouseListener {
             for (int j = 0; j < boardArray[0].length; j++) {
                 Field button = new Field(false, false, i, j);
                 window.add(button);
+                button.setUI(new CustomButtonUI());
                 button.addMouseListener(this);
+                button.setBackground(Color.WHITE.darker());
+                button.setBorder(BorderFactory.createLineBorder(Color.BLACK));
                 boardArray[i][j] = button;
                 boardArray[i][j].setType(Type.BLANK);
             }
         }
     }
 
-    private int revealField(int row, int col) {
-        if (boardArray[row][col].isFlagged() || gameOver) return 0;
-
+    private void revealField(int row, int col) {
+        if (boardArray[row][col].isFlagged() || gameOver) {
+              return;
+        }
         if (boardArray[row][col].getType() == Type.MINE) {
+            boardArray[row][col].setIcon(exploIcon);
             gameOver = true;
-            disableAllButtons();
-            return -1;
+            gameStatus.setText("GAME OVER");
+            gameStatus.setForeground(Color.RED);
+            gameStatus.setVisible(true);
 
         } else if (boardArray[row][col].getType() == Type.BLANK) {
             Queue<Field> queue = new LinkedList<>();
@@ -103,19 +136,8 @@ public class Board extends JPanel implements MouseListener {
             boardArray[row][col].setEnabled(false);
             numbOfNotMines--;
         }
-
         if (checkWin() == 0) {
             gameOver = true;
-            disableAllButtons();
-        }
-        return 0;
-    }
-
-    private void disableAllButtons() {
-        for (Field[] boardRow : boardArray) {
-            for (Field cell : boardRow) {
-                cell.setEnabled(false);
-            }
         }
     }
 
@@ -123,10 +145,12 @@ public class Board extends JPanel implements MouseListener {
         if (boardArray[row][col].notRevealed() && !gameOver) {
             if (boardArray[row][col].isFlagged()) {
                 boardArray[row][col].setFlagged(false);
-                checkedMines--;
+                checkedMines++;
+                checkedMinesLabel.setText(Integer.toString(checkedMines));
             } else {
                 boardArray[row][col].setFlagged(true);
-                checkedMines++;
+                checkedMines--;
+                checkedMinesLabel.setText(Integer.toString(checkedMines));
             }
         }
     }
@@ -165,10 +189,11 @@ public class Board extends JPanel implements MouseListener {
     public void mouseClicked(MouseEvent e) {
         Field field = (Field) e.getSource();
         if (e.getButton() == MouseEvent.BUTTON1) {
-            if (this.revealField(field.getMineRow(), field.getMineCol()) == -1) {
-                System.out.println("Game over");
-            } else if (checkWin() == 0) {
-                System.out.println("You won");
+            this.revealField(field.getMineRow(), field.getMineCol());
+            if (checkWin() == 0) {
+                gameStatus.setText("YOU WON");
+                gameStatus.setForeground(Color.GREEN);
+                gameStatus.setVisible(true);
             }
         }
         if (e.getButton() == MouseEvent.BUTTON3) {
@@ -196,15 +221,32 @@ public class Board extends JPanel implements MouseListener {
         return col;
     }
 
-    public int getCheckedMines(){
-        return checkedMines;
-    }
-
     public String getDifficulty(){
         return difficulty;
     }
 
-    public boolean getGameOver(){
-        return gameOver;
+    public  static class CustomButtonUI extends BasicButtonUI {
+        @Override
+        public void paint(Graphics g, JComponent c) {
+            AbstractButton button = (AbstractButton) c;
+            if (!button.isEnabled()) {
+                // Set background color when disabled
+                g.setColor(Color.WHITE);
+                g.fillRect(0, 0, button.getWidth(), button.getHeight());
+
+                // Draw the text and icon in the original foreground color
+                g.setColor(button.getForeground());
+                if (button.getIcon() != null) {
+                    button.getIcon().paintIcon(button, g, (button.getWidth() - button.getIcon().getIconWidth()) / 2,
+                            (button.getHeight() - button.getIcon().getIconHeight()) / 2);
+                }
+                FontMetrics fm = g.getFontMetrics();
+                int textX = (button.getWidth() - fm.stringWidth(button.getText())) / 2;
+                int textY = (button.getHeight() + fm.getAscent()) / 2 - 2;
+                g.drawString(button.getText(), textX, textY);
+            } else {
+                super.paint(g, c);
+            }
+        }
     }
 }
